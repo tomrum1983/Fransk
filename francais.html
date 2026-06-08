@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FrançaisTrainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #0f172a; font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; padding: 16px; }
+@keyframes xpburst {
+  0% { opacity: 0; transform: translate(-50%,-60%) scale(0.7); }
+  30% { opacity: 1; transform: translate(-50%,-70%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%,-90%) scale(1); }
+}
+.card { background: #0f1f35; border-radius: 16px; padding: 20px; border: 1px solid #1e3a5f; width: 100%; max-width: 460px; margin: 0 auto; }
+.btn-primary { display: block; width: 100%; background: #dc2626; color: #fff; border: none; border-radius: 12px; padding: 14px; font-weight: 800; font-size: 16px; cursor: pointer; font-family: 'Syne', sans-serif; text-align: center; -webkit-appearance: none; }
+.btn-secondary { display: block; width: 100%; background: transparent; color: #94a3b8; border: 2px solid #334155; border-radius: 12px; padding: 12px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 10px; -webkit-appearance: none; }
+.btn-ghost { background: transparent; color: #f87171; border: none; cursor: pointer; font-weight: 600; font-size: 14px; padding: 4px; -webkit-appearance: none; }
+.option { display: block; width: 100%; background: #1e293b; border: 2px solid #334155; color: #cbd5e1; border-radius: 12px; padding: 13px 16px; text-align: left; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px; font-family: inherit; -webkit-appearance: none; }
+.option.selected { background: #3b1a1a; border-color: #dc2626; color: #fca5a5; }
+.option.correct { background: #14532d; border-color: #22c55e; color: #86efac; }
+.option.wrong { background: #450a0a; border-color: #ef4444; color: #fca5a5; }
+.feedback-good { background: #14532d; border: 1.5px solid #22c55e; color: #86efac; border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 12px; }
+.feedback-bad { background: #450a0a; border: 1.5px solid #ef4444; color: #fca5a5; border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 12px; }
+.explanation { background: #0f172a; border-radius: 12px; padding: 14px; font-size: 13px; color: #94a3b8; border-left: 3px solid #dc2626; margin-bottom: 12px; line-height: 1.5; }
+.progress-bar { background: #1e293b; border-radius: 99px; height: 10px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 99px; transition: width 0.5s; }
+.badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 99px; margin-bottom: 14px; }
+.xp-burst { position: fixed; top: 50%; left: 50%; font-size: 26px; font-weight: 900; color: #facc15; pointer-events: none; animation: xpburst 0.8s ease forwards; z-index: 999; font-family: 'Syne', sans-serif; text-shadow: 0 2px 16px #00000088; }
+.stat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 10px 0; text-align: center; }
+.stat-val { font-size: 20px; font-weight: 900; font-family: 'Syne', sans-serif; }
+.stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+.level-btn { flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid #1e293b; background: #1e293b; color: #475569; font-weight: 700; font-size: 13px; cursor: pointer; font-family: 'Syne', sans-serif; text-align: center; -webkit-appearance: none; }
+.level-btn.active { border-color: #dc2626; background: #3b1a1a; color: #fca5a5; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const XP_PER_CORRECT = 15;
+const XP_LEVEL_UP = 100;
+
+const QUESTIONS = [
+  { type:"mc", topic:"På restaurant", question:"Du vil gerne have regningen. Hvad siger du?", options:["L'addition, s'il vous plaît.","Donnez-moi de l'argent!","Je veux payer maintenant.","Pouvez-vous m'aider?"], correct:0, explanation:"'L'addition' = regningen. Meget kortere end på dansk!" },
+  { type:"mc", topic:"På restaurant", question:"Tjeneren siger 'C'était bon?' Hvad spørger han om?", hint:"C'était bon? = Var det godt?", options:["Om du vil have dessert","Om det smagte godt","Om du vil have regningen","Om du er klar til at bestille"], correct:1, explanation:"'C'était' = det var. Meget hyppig sætning fra tjenere i Frankrig." },
+  { type:"mc", topic:"På café", question:"Du vil gerne have en sort kaffe. Hvad siger du?", options:["Un café, s'il vous plaît.","Un café au lait, s'il vous plaît.","Je veux du thé.","Avez-vous de l'eau?"], correct:0, explanation:"'Un café' i Frankrig = en espresso. Med mælk: 'un café au lait'." },
+  { type:"mc", topic:"På café", question:"Hvad betyder 'Pour ici ou à emporter?'", hint:"Pour ici = til her / à emporter = til at tage med", options:["Vil du have sukker?","Drikker du her eller tager du med?","Vil du have stor eller lille?","Hvad vil du bestille?"], correct:1, explanation:"Det klassiske spørgsmål ved kassen i Frankrig." },
+  { type:"mc", topic:"Smalltalk", question:"En ven siger 'Ça roule?' Hvad mener han?", hint:"Ça roule? = Kører det? (uformel hilsen)", options:["Har du en bil?","Hvordan går det?","Er du klar?","Hvad laver du?"], correct:1, explanation:"'Ça roule' er meget uformel hverdagssnak. Svar fx 'Ouais, ça roule!'" },
+  { type:"mc", topic:"Smalltalk", question:"Hvad svarer man naturligt på 'Ça va?'", options:["Non, je suis malade.","Ça va, merci!","Je ne comprends pas.","Répétez, s'il vous plaît."], correct:1, explanation:"'Ça va?' = 'Hvordan går det?' Svaret er bare 'Ça va, merci!'" },
+  { type:"mc", topic:"Smalltalk", question:"Hvad betyder 'C'est pas grave'?", hint:"C'est pas grave = det er ikke alvorligt", options:["Det er alvorligt","Det er ligegyldigt / intet problem","Det er dyrt","Det er svært"], correct:1, explanation:"Betyder 'det gør ikke noget'. Den formelle form er 'Ce n'est pas grave'." },
+  { type:"mc", topic:"Smalltalk", question:"Du vil sige farvel til en ven. Hvad siger du?", options:["Au revoir!","À bientôt!","Salut!","Alle tre virker"], correct:3, explanation:"Alle tre virker. 'Salut' og 'À bientôt' er uformelle. 'Au revoir' er mere formelt." },
+  { type:"mc", topic:"Transport", question:"Du vil købe en enkeltbillet til Paris. Hvad siger du?", options:["Paris, s'il vous plaît.","Un aller simple pour Paris, s'il vous plaît.","Je vais à Paris.","Un ticket Paris acheter."], correct:1, explanation:"'Un aller simple' = enkeltbillet. 'Un aller-retour' = tur-retur." },
+  { type:"mc", topic:"Transport", question:"Skiltet viser 'Quai 3'. Hvad betyder det?", hint:"Quai = perron", options:["Terminal 3","Perron 3","Gate 3","Udgang 3"], correct:1, explanation:"'Quai' er det franske ord for perron på togstationer." },
+  { type:"mc", topic:"Transport", question:"Hvad betyder 'Le train a du retard'?", hint:"retard = forsinkelse", options:["Toget er aflyst","Toget er forsinket","Toget afgår om lidt","Toget er fuldt"], correct:1, explanation:"'Du retard' = forsinkelse. Man siger også 'en retard' om at være sent på den." },
+  { type:"mc", topic:"Indkøb", question:"Du vil spørge hvad noget koster. Hvad siger du?", options:["C'est combien?","Quel est le prix?","Avez-vous moins cher?","Je veux acheter ça."], correct:0, explanation:"'C'est combien?' er mest naturligt. 'Ça fait combien?' høres også tit." },
+  { type:"mc", topic:"Indkøb", question:"Ekspedienten spørger 'Je peux vous aider?' Hvad vil hun?", hint:"Je peux vous aider? = Kan jeg hjælpe dig?", options:["Kan hun låne noget af dig?","Kan hun hjælpe dig?","Hvad vil du have?","Er du tilfreds?"], correct:1, explanation:"Standard hilsen i franske butikker. Svar: 'Oui, je cherche...' eller 'Non merci, je regarde'." },
+  { type:"mc", topic:"Indkøb", question:"Du vil bare kigge. Hvad siger du?", options:["Je n'achète rien.","Je regarde seulement, merci.","Non, partez.","Je n'ai pas besoin d'aide."], correct:1, explanation:"'Je regarde seulement' = 'Jeg kigger bare'. Høfligt og naturligt." },
+  { type:"mc", topic:"Vejret", question:"Hvad betyder 'Il pleut des cordes'?", hint:"Il pleut = det regner / des cordes = reb", options:["Det drypper lidt","Det øser ned","Det er overskyet","Det blæser kraftigt"], correct:1, explanation:"Fast udtryk — bogstaveligt 'det regner reb'. Svarende til dansk 'det styrter ned'." },
+  { type:"mc", topic:"Vejret", question:"Hvad betyder 'Aujourd'hui il fait nuageux'?", hint:"nuageux = overskyet / il fait = det er (vejr)", options:["Det er solskin","Det er overskyet","Det er koldt","Det er tåget"], correct:1, explanation:"'Il fait' bruges om vejret. Fx 'il fait beau' (dejligt), 'il fait froid' (koldt)." },
+  { type:"mc", topic:"På arbejdet", question:"Din kollega siger 'Je reviens tout de suite.' Hvad mener han?", hint:"Je reviens = jeg kommer tilbage / tout de suite = med det samme", options:["Han er ikke der","Han kommer straks tilbage","Han er sent på den","Han er gået for dagen"], correct:1, explanation:"'Tout de suite' = med det samme/straks." },
+  { type:"mc", topic:"På arbejdet", question:"Hvad betyder 'On n'avait pas parlé de ça'?", hint:"on n'avait pas parlé = vi havde ikke talt om", options:["Det har vi ikke aftalt","Det kan vi ikke lave om","Det er ikke mit ansvar","Det er et godt forslag"], correct:0, explanation:"'Parler de' = at tale om. Bruges når man er uenig om hvad der blev aftalt." },
+  { type:"mc", topic:"Hotel", question:"Du vil tjekke ind. Hvad siger du i receptionen?", options:["J'ai une réservation au nom de...","J'ai besoin d'une chambre.","Avez-vous de la place?","Où est ma chambre?"], correct:0, explanation:"'J'ai une réservation au nom de...' = 'Jeg har en reservation i navnet...'." },
+  { type:"mc", topic:"Hotel", question:"Hvad betyder 'La chambre donne sur la rue'?", hint:"donne sur = vender ud mod / la rue = gaden", options:["Rummet er tæt på udgangen","Rummet vender ud mod gaden","Rummet er meget stort","Rummet har ikke bad"], correct:1, explanation:"Modsat: 'donne sur la cour' (mod gårdhaven) — roligere." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Je suis 30 ans.", hint:"avoir = at have (bruges om alder på fransk)", options:["Je suis 30 ans.","J'ai 30 ans.","Je fais 30 ans.","J'ai 30 années."], correct:1, explanation:"På dansk siger vi 'jeg ER 30', men på fransk bruger man 'avoir' (have): 'J'ai 30 ans'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Je suis faim.", hint:"avoir faim = at have sult (ikke être)", options:["Je suis faim.","J'ai faim.","Je fais faim.","J'ai une faim."], correct:1, explanation:"'Avoir faim' = at være sulten. Samme med 'avoir soif' (tørstig), 'avoir chaud' (varm)." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Il est très chaud aujourd'hui.", hint:"il fait chaud = det er varmt (vejrudtryk)", options:["Il est très chaud aujourd'hui.","Il fait très chaud aujourd'hui.","C'est très chaud aujourd'hui.","Il a très chaud aujourd'hui."], correct:1, explanation:"Om vejret bruger man altid 'il fait': 'il fait chaud', 'il fait froid', 'il fait beau'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"J'ai allé au marché hier.", hint:"aller = bevægelsesverbum (bruger être)", options:["J'ai allé au marché hier.","Je suis allé au marché hier.","J'étais allé au marché hier.","Je suis aller au marché hier."], correct:1, explanation:"Bevægelses- og tilstandsverber bruger être i passé composé: 'Je suis allé'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"C'est plus bien.", hint:"ne...plus = ikke mere (negation kræver ne)", options:["C'est plus bien.","Ce n'est plus bien.","C'est ne plus bien.","C'est pas plus bien."], correct:1, explanation:"Korrekt negation kræver 'ne...plus': 'Ce n'est plus bien'. I talesprog udelades 'ne' tit." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Je me souviens lui très bien.", hint:"se souvenir de = at huske (kræver de)", options:["Je me souviens lui très bien.","Je me souviens de lui très bien.","Je souviens de lui très bien.","Je m'en souviens lui très bien."], correct:1, explanation:"'Se souvenir' kræver altid 'de' efterfulgt: 'Je me souviens de lui'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Je suis content te voir.", hint:"content de = glad for at (kræver de)", options:["Je suis content te voir.","Je suis content de te voir.","Je suis content pour te voir.","Je suis content à te voir."], correct:1, explanation:"'Content de + infinitiv' er korrekt: 'Je suis content de te voir' = 'Jeg er glad for at se dig'." },
+];
+
+let state = {
+  screen:"home", level:"B1", xp:0, streak:0, hearts:5,
+  sessionCorrect:0, sessionTotal:0, current:null,
+  selected:null, revealed:false, feedback:null, showXP:false, usedIndices:[],
+};
+
+function heartsHTML(n) {
+  return Array.from({length:5},(_,i)=>
+    `<svg width="18" height="18" viewBox="0 0 24 24" fill="${i<n?'#ef4444':'none'}" stroke="${i<n?'#ef4444':'#475569'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`
+  ).join('');
+}
+
+function shouldShowHint(q) {
+  // Only show hint for error_correction — never for mc (answers are in Danish so hint gives away the answer)
+  return q.hint && q.type === 'ec';
+}
+
+function getNextQuestion() {
+  if (state.usedIndices.length >= QUESTIONS.length) state.usedIndices = [];
+  let idx;
+  do { idx = Math.floor(Math.random() * QUESTIONS.length); } while (state.usedIndices.includes(idx));
+  state.usedIndices.push(idx);
+  return {...QUESTIONS[idx]};
+}
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+
+  if (state.showXP) {
+    const b = document.createElement("div");
+    b.className = "xp-burst";
+    b.textContent = `+${XP_PER_CORRECT} XP`;
+    app.appendChild(b);
+  }
+
+  if (state.screen === "levelup") {
+    app.innerHTML += `<div class="card" style="text-align:center;padding:40px 20px;margin-top:40px">
+      <div style="font-size:60px;margin-bottom:16px">🏆</div>
+      <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:900;color:#facc15;margin-bottom:8px">Level ${Math.floor(state.xp/XP_LEVEL_UP)+1}!</div>
+      <div style="color:#94a3b8;margin-bottom:28px">Du er rykket op. Fortsæt det gode arbejde.</div>
+      <button class="btn-primary" onclick="goHome()">Fortsæt</button>
+    </div>`;
+    return;
+  }
+
+  if (state.screen === "home") {
+    const lvl = Math.floor(state.xp/XP_LEVEL_UP)+1;
+    const xpIn = state.xp % XP_LEVEL_UP;
+    const acc = state.sessionTotal>0 ? Math.round(state.sessionCorrect/state.sessionTotal*100) : 0;
+    const stats = state.sessionTotal>0 ? `
+      <div style="display:flex;gap:10px;margin-bottom:22px">
+        <div class="stat-box"><div class="stat-val">${state.sessionTotal}</div><div class="stat-label">Øvelser</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:#22c55e">${state.sessionCorrect}</div><div class="stat-label">Korrekte</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:${acc>70?'#22c55e':'#f59e0b'}">${acc}%</div><div class="stat-label">Præcision</div></div>
+      </div>` : "";
+
+    app.innerHTML = `<div class="card">
+      <div style="margin-bottom:20px">
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:#f1f5f9;letter-spacing:-1px">Français<span style="color:#dc2626">Trainer</span></div>
+        <div style="color:#64748b;font-size:12px;margin-bottom:10px">Hverdagsfransk</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:#ef4444;font-weight:700;font-size:14px">🔥${state.streak}</span>
+          <div style="display:flex;gap:3px">${heartsHTML(state.hearts)}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:22px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:6px">
+          <span style="font-weight:700;color:#94a3b8">Level ${lvl}</span>
+          <span>${xpIn} / ${XP_LEVEL_UP} XP</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${xpIn}%;background:#dc2626"></div></div>
+      </div>
+      ${stats}
+      <div style="margin-bottom:22px">
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Sværhedsgrad</div>
+        <div style="display:flex;gap:8px">
+          ${["A2","B1","B2","C1"].map(l=>`<button class="level-btn ${state.level===l?'active':''}" onclick="setLevel('${l}')">${l}<br><span style="font-size:10px;font-weight:400">${{A2:'Grundlæg.',B1:'Mellem',B2:'Øvet',C1:'Avanceret'}[l]}</span></button>`).join("")}
+        </div>
+      </div>
+      <button class="btn-primary" onclick="startExercise()" ${state.hearts===0?'disabled style="opacity:0.4"':''}>
+        ${state.hearts===0?"❤️ Ingen liv tilbage":"Start øvelse →"}
+      </button>
+      ${state.hearts===0?'<button class="btn-secondary" onclick="refillHearts()">Genopfyld liv</button>':""}
+    </div>`;
+    return;
+  }
+
+  if (state.screen === "exercise") {
+    const q = state.current;
+    if (!q) { app.innerHTML='<div class="card"><p style="color:#fca5a5;text-align:center;padding:32px">Fejl. <button class="btn-ghost" onclick="startExercise()">Prøv igen</button></p></div>'; return; }
+
+    const opts = q.options.map((opt,i) => {
+      let cls = "option";
+      if (state.revealed) {
+        if (i===q.correct) cls+=" correct";
+        else if (i===state.selected) cls+=" wrong";
+      } else if (i===state.selected) cls+=" selected";
+      return `<button class="${cls}" onclick="selectOption(${i})" ${state.revealed?"disabled":""}><span style="opacity:0.5;margin-right:8px">${["A","B","C","D"][i]}</span>${opt}</button>`;
+    }).join("");
+
+    const feedback = state.feedback==="correct" ? '<div class="feedback-good">✓ Korrekt!</div>'
+      : state.feedback==="wrong" ? '<div class="feedback-bad">✗ Forkert.</div>' : "";
+
+    const hintHTML = shouldShowHint(q) ? `<div style="font-size:12px;color:#64748b;margin-top:8px;font-style:italic">🇫🇷 ${q.hint}</div>` : '';
+
+    const qBox = q.type==="mc"
+      ? `<div style="background:#1e293b;border-radius:14px;padding:18px;margin-bottom:18px;font-size:17px;font-weight:700;color:#f1f5f9;line-height:1.5;font-family:'Syne',sans-serif">${q.question}${hintHTML}</div>`
+      : `<div style="background:#1e293b;border-radius:14px;padding:18px;margin-bottom:18px;font-family:'Syne',sans-serif"><div style="font-size:17px;font-weight:700;color:#fca5a5;font-style:italic;line-height:1.5">${q.wrong}</div>${hintHTML}</div>`;
+
+    const action = !state.revealed
+      ? `<button class="btn-primary" onclick="checkAnswer()" ${state.selected===null?'disabled style="opacity:0.4"':''}>Tjek svar</button>`
+      : `${q.explanation?`<div class="explanation">💬 ${q.explanation}</div>`:""}
+         <button class="btn-primary" onclick="startExercise()">Næste øvelse →</button>`;
+
+    app.innerHTML = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <button class="btn-ghost" onclick="goHome()">← Tilbage</button>
+        <div style="display:flex;gap:3px">${heartsHTML(state.hearts)}</div>
+        <span style="color:#facc15;font-weight:700;font-size:14px">🔥${state.streak}</span>
+      </div>
+      <div style="margin-bottom:14px">
+        <span class="badge" style="background:#3b1a1a;color:#f87171">${q.topic}</span>
+        ${q.type==="ec"?'<span class="badge" style="background:#2d1a4a;color:#c4b5fd;margin-left:6px">Ret fejlen</span>':""}
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
+        ${q.type==="mc"?"Vælg det rigtige svar":"Find og ret fejlen"}
+      </div>
+      ${qBox}${opts}${feedback}${action}
+    </div>`;
+  }
+}
+
+function goHome() { state.screen="home"; render(); }
+function setLevel(l) { state.level=l; render(); }
+function refillHearts() { state.hearts=5; render(); }
+
+function startExercise() {
+  state.current=getNextQuestion(); state.selected=null; state.revealed=false;
+  state.feedback=null; state.screen="exercise"; render();
+}
+
+function selectOption(i) {
+  if (state.revealed) return;
+  state.selected=i; render();
+}
+
+function checkAnswer() {
+  if (state.selected===null||state.revealed) return;
+  state.revealed=true; state.sessionTotal++;
+  if (state.selected===state.current.correct) {
+    state.feedback="correct"; state.sessionCorrect++; state.streak++;
+    const newXp=state.xp+XP_PER_CORRECT; state.xp=newXp;
+    state.showXP=true; render();
+    setTimeout(()=>{
+      state.showXP=false;
+      if (Math.floor(newXp/XP_LEVEL_UP)>Math.floor((newXp-XP_PER_CORRECT)/XP_LEVEL_UP)) state.screen="levelup";
+      render();
+    },900);
+  } else {
+    state.feedback="wrong"; state.streak=0; state.hearts=Math.max(0,state.hearts-1); render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
